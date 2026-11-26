@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Budget">
+<title>Daily Budget</title>
+<style>
+  :root { --bg:#f2f3f7; --card:#fff; --text:#1c1c1e; --muted:#8e8e93; --track:#e5e5ea; --green:#34c759; --orange:#ff9500; --red:#ff3b30; --blue:#007aff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#000; --card:#1c1c1e; --text:#f2f2f7; --track:#3a3a3c; } }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; padding:calc(env(safe-area-inset-top) + 14px) 14px 40px; background:var(--bg); color:var(--text);
+         font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width:520px; margin-inline:auto; }
+  .card { background:var(--card); border-radius:18px; padding:16px; margin-bottom:14px; }
+  .date { color:var(--muted); font-size:14px; margin:2px 4px 10px; }
+  .tabs { display:flex; background:var(--track); border-radius:10px; padding:3px; margin-bottom:14px; }
+  .tabs button { flex:1; border:none; background:none; padding:8px; font-size:14px; font-weight:600; color:var(--text); border-radius:8px; cursor:pointer; }
+  .tabs button.on { background:var(--card); box-shadow:0 1px 3px rgba(0,0,0,.15); }
+  .total-label { color:var(--muted); font-size:13px; }
+  .total { font-size:30px; font-weight:700; margin:2px 0 8px; }
+  .hbar { height:8px; background:var(--track); border-radius:4px; overflow:hidden; }
+  .hbar div { height:100%; transition:width .4s, background .4s; }
+  .sub { color:var(--muted); font-size:12px; margin-top:6px; }
+
+  .bars { display:flex; gap:6px; align-items:flex-end; }
+  .col { flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; }
+  .val { font-size:10px; font-weight:700; margin-bottom:4px; white-space:nowrap; }
+  .vtrack { width:100%; max-width:34px; height:170px; background:var(--track); border-radius:10px; position:relative; overflow:hidden; }
+  .vfill { position:absolute; left:0; right:0; bottom:0; border-radius:10px; transition:height .5s ease, background .5s; }
+  .name { font-size:9.5px; text-align:center; line-height:1.15; margin-top:6px; height:24px; color:var(--muted); }
+  .btn { margin-top:6px; width:32px; height:32px; border-radius:50%; border:2px solid var(--track); background:var(--card);
+         color:var(--blue); font-size:16px; font-weight:700; display:grid; place-items:center; cursor:pointer; padding:0; }
+  .btn.done { background:var(--green); border-color:var(--green); color:#fff; }
+  .paid { font-size:9px; height:12px; margin-top:4px; font-weight:700; color:var(--green); white-space:nowrap; }
+  .paid.over { color:var(--red); }
+
+  .mask { position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:flex-end; justify-content:center; z-index:10; }
+  .mask.show { display:flex; }
+  .sheet { background:var(--card); width:100%; max-width:520px; border-radius:20px 20px 0 0; padding:20px 18px calc(env(safe-area-inset-bottom) + 20px); animation:up .25s ease; }
+  @keyframes up { from { transform:translateY(100%); } to { transform:none; } }
+  .sheet h3 { margin:0; font-size:19px; }
+  .sheet .b { color:var(--muted); font-size:13px; margin:4px 0 14px; }
+  .inrow { display:flex; gap:8px; }
+  .inrow input { flex:1; min-width:0; font-size:22px; font-weight:600; padding:12px; border-radius:12px; border:1px solid var(--track); background:var(--bg); color:var(--text); }
+  .inrow .max { border:none; border-radius:12px; padding:0 18px; font-weight:700; background:var(--track); color:var(--blue); font-size:15px; cursor:pointer; }
+  .btns { display:flex; gap:8px; margin-top:12px; }
+  .btns button { flex:1; border:none; border-radius:12px; padding:13px; font-size:16px; font-weight:600; cursor:pointer; }
+  .save { background:var(--blue); color:#fff; }
+  .cancel { background:var(--track); color:var(--text); }
+  .del { background:none; color:var(--red); border:none; width:100%; padding:12px; font-size:15px; margin-top:4px; cursor:pointer; }
+  .foot { text-align:center; }
+  .foot button { border:none; background:none; color:var(--blue); font-size:14px; padding:8px; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<div class="date" id="date"></div>
+
+<div class="tabs">
+  <button data-p="day" class="on">Today</button>
+  <button data-p="week">This week</button>
+  <button data-p="month">This month</button>
+</div>
+
+<section class="card">
+  <div class="total-label" id="totalLabel">Remaining today</div>
+  <div class="total" id="total"></div>
+  <div class="hbar"><div id="totalFill"></div></div>
+  <div class="sub" id="totalSub"></div>
+</section>
+
+<section class="card">
+  <div class="bars" id="bars"></div>
+</section>
+
+<div class="foot"><button id="exportBtn">Export to CSV (Excel)</button></div>
+
+<div class="mask" id="mask">
+  <div class="sheet">
+    <h3 id="sTitle"></h3>
+    <div class="b" id="sBudget"></div>
+    <div class="inrow">
+      <input id="sAmt" type="number" inputmode="numeric" placeholder="Enter amount">
+      <button class="max" id="sMax">MAX</button>
+    </div>
+    <div class="btns">
+      <button class="cancel" id="sCancel">Cancel</button>
+      <button class="save" id="sSave">Save</button>
+    </div>
+    <button class="del" id="sDel">Delete today's entry</button>
+  </div>
+</div>
+
+<script>
+  // ===== Your daily items (edit names/amounts here) =====
+  const ITEMS = [
+    { id:'krl1',   name:'KRL Berangkat', budget:5000  },
+    { id:'angkot', name:'Angkot',        budget:7000  },
+    { id:'siang',  name:'Makan Siang',   budget:35000 },
+    { id:'snack',  name:'Snack Sore',    budget:35000 },
+    { id:'mrt',    name:'MRT Pulang',    budget:5000  },
+    { id:'krl2',   name:'KRL Pulang',    budget:5000  },
+    { id:'parkir', name:'Tap Parkir',    budget:8000  },
+    { id:'malam',  name:'Makan Malam',   budget:50000 },
+  ];
+
+  const KEY = 'dailyBudget.v1';
+  const data = JSON.parse(localStorage.getItem(KEY) || '{"records":{}}');
+  const save = () => localStorage.setItem(KEY, JSON.stringify(data));
+  const $ = id => document.getElementById(id);
+  const rp = n => 'Rp ' + Math.round(n).toLocaleString('en-US');
+  const short = n => { const a = Math.abs(n), s = n < 0 ? '-' : '';
+    return a >= 1000 ? s + (Math.round(a / 100) / 10) + 'k' : s + a; };
+  const keyOf = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const todayKey = () => keyOf(new Date());
+  const today = () => data.records[todayKey()] || {};
+  const setToday = (id, v) => {
+    const k = todayKey(); data.records[k] = data.records[k] || {};
+    if (v == null) delete data.records[k][id]; else data.records[k][id] = v;
+    save(); render();
+  };
+
+  let period = 'day', current = null;
+
+  function range(p) {
+    const s = new Date(); s.setHours(0,0,0,0); const e = new Date(s);
+    if (p === 'day')   e.setDate(s.getDate() + 1);
+    if (p === 'week')  { s.setDate(s.getDate() - ((s.getDay() + 6) % 7)); e.setTime(s.getTime()); e.setDate(s.getDate() + 7); }
+    if (p === 'month') { s.setDate(1); e.setTime(s.getTime()); e.setMonth(s.getMonth() + 1); }
+    return [s, e];
+  }
+  function workdays(p) {
+    if (p === 'day') return 1;
+    const [s, e] = range(p); let n = 0;
+    for (const d = new Date(s); d < e; d.setDate(d.getDate() + 1)) { const w = d.getDay(); if (w >= 1 && w <= 5) n++; }
+    return n;
+  }
+  function spent(id, p) {
+    const [s, e] = range(p); let sum = 0;
+    for (const k in data.records) {
+      const [y, m, d] = k.split('-').map(Number), dt = new Date(y, m - 1, d);
+      if (dt >= s && dt < e && data.records[k][id] != null) sum += data.records[k][id];
+    }
+    return sum;
+  }
+  const color = pct => pct > 50 ? 'var(--green)' : pct > 20 ? 'var(--orange)' : 'var(--red)';
+
+  function render() {
+    $('date').textContent = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    const days = workdays(period), rec = today();
+    let totB = 0, totS = 0;
+
+    $('bars').innerHTML = ITEMS.map(it => {
+      const b = it.budget * days, s = spent(it.id, period), rem = b - s;
+      totB += b; totS += s;
+      const pct = b > 0 ? Math.max(0, Math.min(100, rem / b * 100)) : 0;
+      const v = rec[it.id], done = v != null;
+      return `<div class="col">
+        <div class="val" style="color:${rem < 0 ? 'var(--red)' : 'inherit'}">${short(rem)}</div>
+        <div class="vtrack"><div class="vfill" style="height:${pct}%;background:${color(pct)}"></div></div>
+        <div class="name">${it.name}</div>
+        <button class="btn ${done ? 'done' : ''}" data-act="check" data-id="${it.id}">✓</button>
+        <button class="btn" data-act="plus" data-id="${it.id}">+</button>
+        <div class="paid ${done && v > it.budget ? 'over' : ''}">${done ? short(v) : ''}</div>
+      </div>`;
+    }).join('');
+
+    document.querySelectorAll('.btn').forEach(btn => btn.onclick = () => {
+      const it = ITEMS.find(x => x.id === btn.dataset.id);
+      if (btn.dataset.act === 'check') setToday(it.id, today()[it.id] != null ? null : it.budget);
+      else openSheet(it);
+    });
+
+    const rem = totB - totS, pct = totB > 0 ? Math.max(0, Math.min(100, rem / totB * 100)) : 0;
+    $('totalLabel').textContent = { day:'Remaining today', week:'Remaining this week', month:'Remaining this month' }[period];
+    $('total').textContent = rem >= 0 ? rp(rem) : 'Over by ' + rp(-rem);
+    $('total').style.color = rem < 0 ? 'var(--red)' : 'inherit';
+    $('totalFill').style.width = pct + '%';
+    $('totalFill').style.background = color(pct);
+    $('totalSub').textContent = 'Spent ' + rp(totS) + ' of ' + rp(totB) + (period !== 'day' ? ' · ' + days + ' working days' : '');
+  }
+
+  function openSheet(it) {
+    current = it;
+    const v = today()[it.id];
+    $('sTitle').textContent = it.name;
+    $('sBudget').textContent = 'Budget ' + rp(it.budget);
+    $('sAmt').value = v ?? '';
+    $('sDel').style.display = v != null ? 'block' : 'none';
+    $('mask').classList.add('show');
+    setTimeout(() => $('sAmt').focus(), 250);
+  }
+  const closeSheet = () => { $('mask').classList.remove('show'); $('sAmt').blur(); current = null; };
+
+  $('sMax').onclick = () => { setToday(current.id, current.budget); closeSheet(); };
+  $('sSave').onclick = () => {
+    const v = parseFloat($('sAmt').value);
+    if ($('sAmt').value === '' || !(v >= 0)) { alert('Enter an amount or tap MAX.'); return; }
+    setToday(current.id, v); closeSheet();
+  };
+  $('sDel').onclick = () => { setToday(current.id, null); closeSheet(); };
+  $('sCancel').onclick = closeSheet;
+  $('mask').onclick = e => { if (e.target === $('mask')) closeSheet(); };
+
+  document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('on'));
+    b.classList.add('on'); period = b.dataset.p; render();
+  });
+
+  $('exportBtn').onclick = () => {
+    const rows = [['Date', 'Item', 'Budget', 'Spent']];
+    Object.keys(data.records).sort().forEach(k => ITEMS.forEach(it => {
+      if (data.records[k][it.id] != null) rows.push([k, it.name, it.budget, data.records[k][it.id]]);
+    }));
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([rows.map(r => r.join(',')).join('\n')], { type:'text/csv' }));
+    a.download = 'expenses.csv'; a.click();
+  };
+
+  let lastDay = todayKey();
+  render();
+  setInterval(() => { if (todayKey() !== lastDay) { lastDay = todayKey(); render(); } }, 60000);
+</script>
+</body>
+</html>
