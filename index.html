@@ -8,13 +8,23 @@
 <meta name="apple-mobile-web-app-title" content="Budget">
 <title>Daily Budget</title>
 <style>
-  :root { --bg:#f2f3f7; --card:#fff; --text:#1c1c1e; --muted:#8e8e93; --track:#e5e5ea; --green:#34c759; --orange:#ff9500; --red:#ff3b30; --blue:#007aff; }
+  :root { --bg:#f2f3f7; --card:#fff; --text:#1c1c1e; --muted:#8e8e93; --track:#e5e5ea; --green:#34c759; --orange:#ff9500; --red:#ff3b30; --blue:#007aff; --purple:#af52de; }
   @media (prefers-color-scheme: dark) { :root { --bg:#000; --card:#1c1c1e; --text:#f2f2f7; --track:#3a3a3c; } }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { overflow-x:hidden; }
   body { margin:0; padding:calc(env(safe-area-inset-top) + 14px) 14px 40px; background:var(--bg); color:var(--text);
          font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width:520px; margin-inline:auto; }
   .card { background:var(--card); border-radius:18px; padding:16px; margin-bottom:14px; }
-  .date { color:var(--muted); font-size:14px; margin:2px 4px 10px; }
+
+  .top { display:flex; justify-content:space-between; align-items:center; margin:2px 4px 12px; }
+  .title { font-size:24px; font-weight:700; }
+  .date { color:var(--muted); font-size:13px; margin-top:2px; }
+  .mode { border:none; background:var(--track); color:var(--blue); font-weight:700; font-size:14px; padding:9px 14px; border-radius:20px; cursor:pointer; }
+
+  .viewport { overflow:hidden; }
+  .pager { display:flex; width:200%; transition:transform .35s ease; align-items:flex-start; }
+  .page { width:50%; padding:0 1px; }
+
   .tabs { display:flex; background:var(--track); border-radius:10px; padding:3px; margin-bottom:14px; }
   .tabs button { flex:1; border:none; background:none; padding:8px; font-size:14px; font-weight:600; color:var(--text); border-radius:8px; cursor:pointer; }
   .tabs button.on { background:var(--card); box-shadow:0 1px 3px rgba(0,0,0,.15); }
@@ -36,7 +46,29 @@
   .paid { font-size:9px; height:12px; margin-top:4px; font-weight:700; color:var(--green); white-space:nowrap; }
   .paid.over { color:var(--red); }
 
-  .mask { position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:flex-end; justify-content:center; z-index:10; }
+  .wk-hero { background:linear-gradient(135deg, #af52de, #5e5ce6); color:#fff; }
+  .wk-hero .total-label, .wk-hero .sub { color:rgba(255,255,255,.8); }
+  .wk-hero .hbar { background:rgba(255,255,255,.25); }
+  .wk-hero .hbar div { background:#fff; }
+  h2 { font-size:16px; margin:0 0 8px; }
+  .srow { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--track); font-size:15px; }
+  .srow:last-child { border-bottom:none; }
+  .srow.sum { font-weight:700; }
+  .small { color:var(--muted); font-size:12px; }
+  .pos { color:var(--green); font-weight:600; }
+  .neg { color:var(--red); font-weight:600; }
+  .mut { color:var(--muted); font-size:13px; }
+  .right { text-align:right; }
+  .bigbtn { width:100%; border:none; border-radius:14px; padding:14px; font-size:16px; font-weight:700; background:var(--purple); color:#fff; cursor:pointer; margin-bottom:14px; }
+  ul { list-style:none; padding:0; margin:0; }
+  li { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--track); }
+  li:last-child { border-bottom:none; }
+  li .info { flex:1; min-width:0; }
+  li .note { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  li .amt { font-weight:700; }
+  li .x { width:30px; height:30px; border:none; border-radius:50%; background:var(--track); color:var(--muted); font-size:17px; cursor:pointer; }
+
+  .mask { position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:flex-end; justify-content:center; z-index:30; }
   .mask.show { display:flex; }
   .sheet { background:var(--card); width:100%; max-width:520px; border-radius:20px 20px 0 0; padding:20px 18px calc(env(safe-area-inset-bottom) + 20px); animation:up .25s ease; }
   @keyframes up { from { transform:translateY(100%); } to { transform:none; } }
@@ -45,38 +77,109 @@
   .inrow { display:flex; gap:8px; }
   .inrow input { flex:1; min-width:0; font-size:22px; font-weight:600; padding:12px; border-radius:12px; border:1px solid var(--track); background:var(--bg); color:var(--text); }
   .inrow .max { border:none; border-radius:12px; padding:0 18px; font-weight:700; background:var(--track); color:var(--blue); font-size:15px; cursor:pointer; }
+  .notein { width:100%; font-size:16px; padding:12px; border-radius:12px; border:1px solid var(--track); background:var(--bg); color:var(--text); margin-top:8px; }
   .btns { display:flex; gap:8px; margin-top:12px; }
   .btns button { flex:1; border:none; border-radius:12px; padding:13px; font-size:16px; font-weight:600; cursor:pointer; }
   .save { background:var(--blue); color:#fff; }
   .cancel { background:var(--track); color:var(--text); }
   .del { background:none; color:var(--red); border:none; width:100%; padding:12px; font-size:15px; margin-top:4px; cursor:pointer; }
-  .foot { text-align:center; }
+  .foot { display:flex; justify-content:center; gap:6px; flex-wrap:wrap; }
   .foot button { border:none; background:none; color:var(--blue); font-size:14px; padding:8px; cursor:pointer; }
+  .foot .recapBtn { background:var(--card); border-radius:20px; padding:10px 16px; font-weight:700; }
+
+  /* Monthly recap screen */
+  .recap { position:fixed; inset:0; background:var(--bg); z-index:20; overflow-y:auto; display:none; -webkit-overflow-scrolling:touch; }
+  .recap.show { display:block; animation:fade .2s ease; }
+  @keyframes fade { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+  .recap .inner { max-width:520px; margin:0 auto; padding:calc(env(safe-area-inset-top) + 14px) 14px calc(env(safe-area-inset-bottom) + 30px); }
+  .mnav { display:flex; align-items:center; justify-content:space-between; background:var(--card); border-radius:14px; padding:6px; margin-bottom:14px; }
+  .mnav button { border:none; background:var(--track); color:var(--blue); width:40px; height:40px; border-radius:10px; font-size:20px; font-weight:700; cursor:pointer; }
+  .mnav button:disabled { opacity:.3; }
+  .mnav div { font-weight:700; font-size:17px; }
+  .rc-hero { background:linear-gradient(135deg, #34c759, #30b0c7); color:#fff; }
+  .rc-hero.bad { background:linear-gradient(135deg, #ff3b30, #ff9500); }
+  .rc-hero .total-label, .rc-hero .sub { color:rgba(255,255,255,.85); }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .stat { background:var(--card); border-radius:16px; padding:14px; }
+  .stat .v { font-size:18px; font-weight:700; margin:4px 0 2px; }
+  .empty { text-align:center; color:var(--muted); padding:30px 10px; }
 </style>
 </head>
 <body>
 
-<div class="date" id="date"></div>
-
-<div class="tabs">
-  <button data-p="day" class="on">Today</button>
-  <button data-p="week">This week</button>
-  <button data-p="month">This month</button>
+<div class="top">
+  <div>
+    <div class="title" id="title">Weekdays</div>
+    <div class="date" id="date"></div>
+  </div>
+  <button class="mode" id="modeBtn">Weekend ›</button>
 </div>
 
-<section class="card">
-  <div class="total-label" id="totalLabel">Remaining today</div>
-  <div class="total" id="total"></div>
-  <div class="hbar"><div id="totalFill"></div></div>
-  <div class="sub" id="totalSub"></div>
-</section>
+<div class="viewport">
+  <div class="pager" id="pager">
 
-<section class="card">
-  <div class="bars" id="bars"></div>
-</section>
+    <!-- ===== WEEKDAY PAGE ===== -->
+    <div class="page">
+      <div class="tabs">
+        <button data-p="day" class="on">Today</button>
+        <button data-p="week">This week</button>
+        <button data-p="month">This month</button>
+      </div>
+      <section class="card">
+        <div class="total-label" id="totalLabel">Remaining today</div>
+        <div class="total" id="total"></div>
+        <div class="hbar"><div id="totalFill"></div></div>
+        <div class="sub" id="totalSub"></div>
+      </section>
+      <section class="card">
+        <div class="bars" id="bars"></div>
+      </section>
+    </div>
 
-<div class="foot"><button id="exportBtn">Export to CSV (Excel)</button></div>
+    <!-- ===== WEEKEND PAGE ===== -->
+    <div class="page">
+      <section class="card wk-hero">
+        <div class="total-label">Weekend budget left</div>
+        <div class="total" id="wTotal"></div>
+        <div class="hbar"><div id="wFill"></div></div>
+        <div class="sub" id="wSub"></div>
+      </section>
+      <button class="bigbtn" id="wAddBtn">+ Add weekend expense</button>
+      <section class="card">
+        <h2>Weekend expenses</h2>
+        <ul id="wList"></ul>
+      </section>
+      <section class="card">
+        <h2>Saved this week</h2>
+        <div id="wSavings"></div>
+      </section>
+    </div>
 
+  </div>
+</div>
+
+<div class="foot">
+  <button class="recapBtn" id="recapBtn">📊 Monthly recap</button>
+  <button id="exportBtn">Export all to CSV</button>
+</div>
+
+<!-- ===== MONTHLY RECAP SCREEN ===== -->
+<div class="recap" id="recap">
+  <div class="inner">
+    <div class="top">
+      <div class="title">Monthly recap</div>
+      <button class="mode" id="rClose">Done</button>
+    </div>
+    <div class="mnav">
+      <button id="rPrev">‹</button>
+      <div id="rMonthLabel"></div>
+      <button id="rNext">›</button>
+    </div>
+    <div id="rBody"></div>
+  </div>
+</div>
+
+<!-- Weekday item sheet -->
 <div class="mask" id="mask">
   <div class="sheet">
     <h3 id="sTitle"></h3>
@@ -93,6 +196,23 @@
   </div>
 </div>
 
+<!-- Weekend expense sheet -->
+<div class="mask" id="wMask">
+  <div class="sheet">
+    <h3>Weekend expense</h3>
+    <div class="b" id="wAvail"></div>
+    <div class="inrow">
+      <input id="wAmt" type="number" inputmode="numeric" placeholder="Enter amount">
+      <button class="max" id="wMax">MAX</button>
+    </div>
+    <input id="wNote" class="notein" type="text" placeholder="What for? (optional)">
+    <div class="btns">
+      <button class="cancel" id="wCancel">Cancel</button>
+      <button class="save" id="wSave">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // ===== Your daily items (edit names/amounts here) =====
   const ITEMS = [
@@ -105,25 +225,35 @@
     { id:'parkir', name:'Tap Parkir',    budget:8000  },
     { id:'malam',  name:'Makan Malam',   budget:50000 },
   ];
+  const DAILY_TOTAL = ITEMS.reduce((s, i) => s + i.budget, 0);
 
   const KEY = 'dailyBudget.v1';
-  const data = JSON.parse(localStorage.getItem(KEY) || '{"records":{}}');
+  const data = JSON.parse(localStorage.getItem(KEY) || '{}');
+  data.records = data.records || {};
+  data.weekend = data.weekend || {};
   const save = () => localStorage.setItem(KEY, JSON.stringify(data));
   const $ = id => document.getElementById(id);
   const rp = n => 'Rp ' + Math.round(n).toLocaleString('en-US');
   const short = n => { const a = Math.abs(n), s = n < 0 ? '-' : '';
     return a >= 1000 ? s + (Math.round(a / 100) / 10) + 'k' : s + a; };
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  const clamp = p => Math.max(0, Math.min(100, p));
   const keyOf = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   const todayKey = () => keyOf(new Date());
+  const monthKey = () => todayKey().slice(0, 7);
+  const mondayOf = d => { const m = new Date(d); m.setHours(0,0,0,0); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); return m; };
+  const weekKey = () => keyOf(mondayOf(new Date()));
   const today = () => data.records[todayKey()] || {};
   const setToday = (id, v) => {
     const k = todayKey(); data.records[k] = data.records[k] || {};
     if (v == null) delete data.records[k][id]; else data.records[k][id] = v;
     save(); render();
   };
+  const sheetOpen = () => $('mask').classList.contains('show') || $('wMask').classList.contains('show') || $('recap').classList.contains('show');
 
-  let period = 'day', current = null;
+  let period = 'day', current = null, mode = 'weekday';
 
+  // ---------- Weekday logic ----------
   function range(p) {
     const s = new Date(); s.setHours(0,0,0,0); const e = new Date(s);
     if (p === 'day')   e.setDate(s.getDate() + 1);
@@ -147,15 +277,13 @@
   }
   const color = pct => pct > 50 ? 'var(--green)' : pct > 20 ? 'var(--orange)' : 'var(--red)';
 
-  function render() {
-    $('date').textContent = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  function renderWeekday() {
     const days = workdays(period), rec = today();
     let totB = 0, totS = 0;
-
     $('bars').innerHTML = ITEMS.map(it => {
       const b = it.budget * days, s = spent(it.id, period), rem = b - s;
       totB += b; totS += s;
-      const pct = b > 0 ? Math.max(0, Math.min(100, rem / b * 100)) : 0;
+      const pct = b > 0 ? clamp(rem / b * 100) : 0;
       const v = rec[it.id], done = v != null;
       return `<div class="col">
         <div class="val" style="color:${rem < 0 ? 'var(--red)' : 'inherit'}">${short(rem)}</div>
@@ -173,7 +301,7 @@
       else openSheet(it);
     });
 
-    const rem = totB - totS, pct = totB > 0 ? Math.max(0, Math.min(100, rem / totB * 100)) : 0;
+    const rem = totB - totS, pct = totB > 0 ? clamp(rem / totB * 100) : 0;
     $('totalLabel').textContent = { day:'Remaining today', week:'Remaining this week', month:'Remaining this month' }[period];
     $('total').textContent = rem >= 0 ? rp(rem) : 'Over by ' + rp(-rem);
     $('total').style.color = rem < 0 ? 'var(--red)' : 'inherit';
@@ -182,6 +310,175 @@
     $('totalSub').textContent = 'Spent ' + rp(totS) + ' of ' + rp(totB) + (period !== 'day' ? ' · ' + days + ' working days' : '');
   }
 
+  // ---------- Weekend logic ----------
+  function weekSavings() {
+    const mon = mondayOf(new Date()), now = new Date(); now.setHours(0,0,0,0);
+    const days = []; let total = 0;
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(mon); d.setDate(mon.getDate() + i);
+      const rec = data.records[keyOf(d)];
+      let status, val = null;
+      if (d > now) status = 'future';
+      else if (!rec || !Object.keys(rec).length) status = 'none';
+      else {
+        val = DAILY_TOTAL - Object.values(rec).reduce((a, b) => a + b, 0);
+        total += val;
+        status = d.getTime() === now.getTime() ? 'today' : 'done';
+      }
+      days.push({ d, status, val });
+    }
+    return { days, total };
+  }
+  const weekendList = () => data.weekend[weekKey()] || [];
+
+  function renderWeekend() {
+    const { days, total } = weekSavings();
+    const list = weekendList();
+    const wSpent = list.reduce((s, e) => s + e.amount, 0);
+    const left = total - wSpent;
+
+    $('wTotal').textContent = left >= 0 ? rp(left) : 'Over by ' + rp(-left);
+    $('wFill').style.width = (total > 0 ? clamp(left / total * 100) : 0) + '%';
+    $('wSub').textContent = 'Spent ' + rp(wSpent) + ' of ' + rp(total) + ' saved this week';
+
+    const DN = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    $('wSavings').innerHTML = days.map((x, i) => {
+      const dl = x.d.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+      let right;
+      if (x.status === 'future') right = '<span class="mut">Upcoming</span>';
+      else if (x.status === 'none') right = '<span class="mut">Not logged</span>';
+      else right = `<span class="${x.val >= 0 ? 'pos' : 'neg'}">${x.val >= 0 ? '+' : '−'}${rp(Math.abs(x.val))}</span>`
+                 + (x.status === 'today' ? ' <span class="small">so far</span>' : '');
+      return `<div class="srow"><span>${DN[i]} <span class="small">${dl}</span></span><span>${right}</span></div>`;
+    }).join('') + `<div class="srow sum"><span>Total saved</span><span class="${total >= 0 ? 'pos' : 'neg'}">${rp(total)}</span></div>`;
+
+    const ul = $('wList');
+    if (!list.length) { ul.innerHTML = '<li class="mut">No weekend expenses yet.</li>'; return; }
+    ul.innerHTML = list.slice().sort((a, b) => b.ts - a.ts).map(e => {
+      const d = new Date(e.ts);
+      const when = d.toLocaleDateString('en-GB', { weekday:'short' }) + ' · ' + d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+      return `<li><div class="info"><div class="note">${esc(e.note || 'Expense')}</div><div class="small">${when}</div></div>
+              <span class="amt">${rp(e.amount)}</span><button class="x" data-id="${e.id}">×</button></li>`;
+    }).join('');
+    ul.querySelectorAll('.x').forEach(b => b.onclick = () => {
+      if (!confirm('Delete this expense?')) return;
+      data.weekend[weekKey()] = weekendList().filter(e => e.id !== b.dataset.id);
+      save(); render();
+    });
+  }
+
+  function render() {
+    $('date').textContent = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    renderWeekday();
+    renderWeekend();
+  }
+
+  // ---------- Monthly recap ----------
+  let rYear, rMon; // rMon = 0–11
+
+  function monthData(y, m) {
+    const prefix = y + '-' + String(m + 1).padStart(2, '0') + '-';
+    const days = Object.keys(data.records).filter(k => k.startsWith(prefix) && Object.keys(data.records[k]).length).sort();
+    const items = ITEMS.map(it => {
+      let s = 0, n = 0;
+      days.forEach(k => { const v = data.records[k][it.id]; if (v != null) { s += v; n++; } });
+      return { it, spent: s, uses: n, budget: it.budget * days.length };
+    });
+    const wdSpent = items.reduce((s, x) => s + x.spent, 0);
+    const wdBudget = DAILY_TOTAL * days.length;
+    const weekend = [];
+    Object.values(data.weekend).forEach(list => list.forEach(e => { if (keyOf(new Date(e.ts)).startsWith(prefix)) weekend.push(e); }));
+    weekend.sort((a, b) => a.ts - b.ts);
+    const wkSpent = weekend.reduce((s, e) => s + e.amount, 0);
+    return { prefix, days, items, wdSpent, wdBudget, weekend, wkSpent, net: wdBudget - wdSpent - wkSpent };
+  }
+
+  function renderRecap() {
+    const label = new Date(rYear, rMon, 1).toLocaleDateString('en-GB', { month:'long', year:'numeric' });
+    $('rMonthLabel').textContent = label;
+    const now = new Date();
+    $('rNext').disabled = rYear > now.getFullYear() || (rYear === now.getFullYear() && rMon >= now.getMonth());
+
+    const r = monthData(rYear, rMon);
+    if (!r.days.length && !r.weekend.length) {
+      $('rBody').innerHTML = `<div class="card empty">No expenses recorded in ${label}.</div>`;
+      return;
+    }
+
+    const saved = r.wdBudget - r.wdSpent;
+    const itemRows = r.items.map(x => {
+      const diff = x.budget - x.spent;
+      const diffTxt = x.uses === 0 ? '<span class="small">Not used</span>'
+        : `<span class="small ${diff >= 0 ? 'pos' : 'neg'}">${diff >= 0 ? rp(diff) + ' under' : rp(-diff) + ' over'}</span>`;
+      return `<div class="srow"><span>${x.it.name}<br><span class="small">Used ${x.uses}× of ${r.days.length} days</span></span>
+              <span class="right"><b>${rp(x.spent)}</b><br>${diffTxt}</span></div>`;
+    }).join('');
+
+    const wkRows = r.weekend.length ? r.weekend.map(e => {
+      const d = new Date(e.ts).toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
+      return `<li><div class="info"><div class="note">${esc(e.note || 'Expense')}</div><div class="small">${d}</div></div><span class="amt">${rp(e.amount)}</span></li>`;
+    }).join('') : '<li class="mut">No weekend expenses.</li>';
+
+    $('rBody').innerHTML = `
+      <section class="card rc-hero ${r.net < 0 ? 'bad' : ''}">
+        <div class="total-label">${r.net >= 0 ? 'Saved this month' : 'Overspent this month'}</div>
+        <div class="total">${rp(Math.abs(r.net))}</div>
+        <div class="sub">Weekday savings ${rp(saved)} − weekend spending ${rp(r.wkSpent)}</div>
+      </section>
+      <div class="grid">
+        <div class="stat"><div class="small">Weekday spending</div><div class="v">${rp(r.wdSpent)}</div>
+          <div class="small">of ${rp(r.wdBudget)} · ${r.days.length} days logged</div></div>
+        <div class="stat"><div class="small">Weekend spending</div><div class="v">${rp(r.wkSpent)}</div>
+          <div class="small">${r.weekend.length} expense${r.weekend.length === 1 ? '' : 's'}</div></div>
+      </div>
+      <section class="card"><h2>By item</h2>${itemRows}</section>
+      <section class="card"><h2>Weekend expenses</h2><ul>${wkRows}</ul></section>
+      <button class="bigbtn" id="rExport">Export ${label} (CSV)</button>`;
+
+    $('rExport').onclick = () => exportCSV(r.prefix, 'expenses-' + r.prefix.slice(0, 7) + '.csv');
+  }
+
+  function openRecap(y, m) {
+    const now = new Date();
+    rYear = y ?? now.getFullYear(); rMon = m ?? now.getMonth();
+    renderRecap();
+    $('recap').classList.add('show');
+    $('recap').scrollTop = 0;
+  }
+  $('recapBtn').onclick = () => openRecap();
+  $('rClose').onclick = () => $('recap').classList.remove('show');
+  $('rPrev').onclick = () => { rMon--; if (rMon < 0) { rMon = 11; rYear--; } renderRecap(); };
+  $('rNext').onclick = () => { rMon++; if (rMon > 11) { rMon = 0; rYear++; } renderRecap(); };
+
+  // Show last month's recap automatically the first time the app opens in a new month
+  function checkNewMonth() {
+    const cm = monthKey();
+    if (data.lastMonth && data.lastMonth !== cm) {
+      const [y, m] = data.lastMonth.split('-').map(Number);
+      const r = monthData(y, m - 1);
+      if (r.days.length || r.weekend.length) openRecap(y, m - 1);
+    }
+    data.lastMonth = cm; save();
+  }
+
+  // ---------- Mode switching (button + swipe) ----------
+  function setMode(m) {
+    mode = m;
+    $('pager').style.transform = m === 'weekend' ? 'translateX(-50%)' : 'none';
+    $('modeBtn').textContent = m === 'weekend' ? '‹ Weekdays' : 'Weekend ›';
+    $('title').textContent = m === 'weekend' ? 'Weekend 🌴' : 'Weekdays';
+  }
+  $('modeBtn').onclick = () => setMode(mode === 'weekend' ? 'weekday' : 'weekend');
+
+  let tx = 0, ty = 0;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive:true });
+  document.addEventListener('touchend', e => {
+    if (sheetOpen()) return;
+    const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) setMode(mode === 'weekend' ? 'weekday' : 'weekend');
+  }, { passive:true });
+
+  // ---------- Weekday sheet ----------
   function openSheet(it) {
     current = it;
     const v = today()[it.id];
@@ -193,7 +490,6 @@
     setTimeout(() => $('sAmt').focus(), 250);
   }
   const closeSheet = () => { $('mask').classList.remove('show'); $('sAmt').blur(); current = null; };
-
   $('sMax').onclick = () => { setToday(current.id, current.budget); closeSheet(); };
   $('sSave').onclick = () => {
     const v = parseFloat($('sAmt').value);
@@ -204,24 +500,58 @@
   $('sCancel').onclick = closeSheet;
   $('mask').onclick = e => { if (e.target === $('mask')) closeSheet(); };
 
+  // ---------- Weekend sheet ----------
+  const weekendLeft = () => weekSavings().total - weekendList().reduce((s, e) => s + e.amount, 0);
+  $('wAddBtn').onclick = () => {
+    $('wAmt').value = ''; $('wNote').value = '';
+    $('wAvail').textContent = 'Available ' + rp(Math.max(0, weekendLeft()));
+    $('wMask').classList.add('show');
+    setTimeout(() => $('wAmt').focus(), 250);
+  };
+  const closeW = () => { $('wMask').classList.remove('show'); $('wAmt').blur(); $('wNote').blur(); };
+  $('wMax').onclick = () => { $('wAmt').value = Math.max(0, weekendLeft()); };
+  $('wSave').onclick = () => {
+    const v = parseFloat($('wAmt').value);
+    if (!(v > 0)) { alert('Enter an amount above 0.'); return; }
+    const wk = weekKey();
+    data.weekend[wk] = data.weekend[wk] || [];
+    data.weekend[wk].push({ id: Date.now() + '-' + Math.random().toString(36).slice(2, 7), amount: v, note: $('wNote').value.trim(), ts: Date.now() });
+    save(); render(); closeW();
+  };
+  $('wCancel').onclick = closeW;
+  $('wMask').onclick = e => { if (e.target === $('wMask')) closeW(); };
+
+  // ---------- Tabs & export ----------
   document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
     document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('on'));
     b.classList.add('on'); period = b.dataset.p; render();
   });
 
-  $('exportBtn').onclick = () => {
+  // prefix = '' for everything, or 'YYYY-MM-' for one month
+  function exportCSV(prefix, filename) {
     const rows = [['Date', 'Item', 'Budget', 'Spent']];
-    Object.keys(data.records).sort().forEach(k => ITEMS.forEach(it => {
+    Object.keys(data.records).filter(k => k.startsWith(prefix)).sort().forEach(k => ITEMS.forEach(it => {
       if (data.records[k][it.id] != null) rows.push([k, it.name, it.budget, data.records[k][it.id]]);
+    }));
+    Object.keys(data.weekend).sort().forEach(wk => data.weekend[wk].forEach(e => {
+      const d = keyOf(new Date(e.ts));
+      if (d.startsWith(prefix)) rows.push([d, '"Weekend: ' + (e.note || 'Expense').replace(/"/g, '""') + '"', '', e.amount]);
     }));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([rows.map(r => r.join(',')).join('\n')], { type:'text/csv' }));
-    a.download = 'expenses.csv'; a.click();
-  };
+    a.download = filename; a.click();
+  }
+  $('exportBtn').onclick = () => exportCSV('', 'expenses-all.csv');
 
+  // ---------- Start ----------
   let lastDay = todayKey();
   render();
-  setInterval(() => { if (todayKey() !== lastDay) { lastDay = todayKey(); render(); } }, 60000);
+  const dow = new Date().getDay();
+  setMode(dow === 0 || dow === 6 ? 'weekend' : 'weekday');
+  checkNewMonth();
+  setInterval(() => {
+    if (todayKey() !== lastDay) { lastDay = todayKey(); render(); checkNewMonth(); }
+  }, 60000);
 </script>
 </body>
 </html>
